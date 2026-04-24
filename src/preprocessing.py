@@ -1,7 +1,7 @@
 import pandas as pd
 
 
-def load_data(path="data/paysim.csv", nrows=150000):
+def load_data(path="data/paysim.csv", nrows=1000000):
     print("Loading dataset...")
     df = pd.read_csv(path, nrows=nrows)
     return df

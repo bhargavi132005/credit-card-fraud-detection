@@ -26,7 +26,7 @@ def create_graph_data(df: pd.DataFrame):
     dst = df['nameDest'].map(account_map).values
 
     # Create edge_index tensor
-    edge_index = torch.tensor([src, dst], dtype=torch.long)
+    edge_index = torch.tensor(np.array([src, dst]), dtype=torch.long)
 
     # Define edge features and labels
     edge_label = torch.tensor(df['isFraud'].values, dtype=torch.long)
