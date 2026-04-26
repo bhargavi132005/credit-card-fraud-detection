@@ -11,11 +11,17 @@ def train_baseline(df):
         X, y, test_size=0.2, random_state=42
     )
 
+    # Calculate scale_pos_weight to handle class imbalance
+    neg_cases = (y_train == 0).sum()
+    pos_cases = (y_train == 1).sum()
+    scale_weight = neg_cases / max(1, pos_cases)
+
     model = XGBClassifier(
         n_estimators=100,
         max_depth=6,
         learning_rate=0.1,
-        eval_metric='logloss'
+        eval_metric='logloss',
+        scale_pos_weight=scale_weight
     )
 
     model.fit(X_train, y_train)
