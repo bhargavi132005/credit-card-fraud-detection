@@ -17,3 +17,5 @@ seaborn>=0.12.2
 
 # --- Web Dashboard (Frontend) ---
 streamlit>=1.30.0
+networkx>=3.0
+pyvis>=0.3.2
