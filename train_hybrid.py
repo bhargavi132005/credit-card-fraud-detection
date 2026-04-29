@@ -4,6 +4,7 @@ import os
 import sys
 from xgboost import XGBClassifier
 from sklearn.model_selection import train_test_split
+from sklearn.metrics import confusion_matrix, f1_score, precision_score, recall_score, accuracy_score, roc_auc_score, classification_report
 import joblib
 import matplotlib.pyplot as plt
 
@@ -13,7 +14,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from src.gnn_model import FraudGAT
 from src.preprocessing import load_data, preprocess_data
 from src.features import create_features
-from src.evaluate import evaluate_model
+from src.evaluate import evaluate_model, plot_roc_curve
 
 
 def main():
@@ -59,19 +60,62 @@ def main():
     X = df.drop(['isFraud', 'nameOrig', 'nameDest'], axis=1)
     y = df['isFraud']
 
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-
-    # Calculate scale_pos_weight to force the model to over-predict fraud
-    neg_cases = (y_train == 0).sum()
-    pos_cases = (y_train == 1).sum()
-    scale_weight = neg_cases / pos_cases
-
-    xgb = XGBClassifier(n_estimators=100, max_depth=6, learning_rate=0.1, eval_metric='logloss', scale_pos_weight=scale_weight)
-    xgb.fit(X_train, y_train)
+    # Define the train-test splits to evaluate
+    splits = {
+        "60:40": 0.4,
+        "70:30": 0.3,
+        "80:20": 0.2,
+        "90:10": 0.1
+    }
     
+    report_lines = ["ML Model Name: Hybrid XGBoost (Tabular + GNN Embeddings)"]
     
-    print("\nEvaluating Hybrid Model...")
-    evaluate_model(xgb, X_test, y_test, threshold=0.02)
+    for split_name, test_size in splits.items():
+        print(f"\n--- Training and Evaluating for split {split_name} ---")
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=42)
+
+        # Calculate scale_pos_weight to force the model to over-predict fraud
+        neg_cases = (y_train == 0).sum()
+        pos_cases = (y_train == 1).sum()
+        scale_weight = neg_cases / pos_cases
+
+        xgb = XGBClassifier(n_estimators=100, max_depth=6, learning_rate=0.1, eval_metric='logloss', scale_pos_weight=scale_weight)
+        xgb.fit(X_train, y_train)
+        
+        print(f"Evaluating Hybrid Model for {split_name}...")
+        evaluate_model(xgb, X_test, y_test, threshold=0.02)
+        
+        y_probs = xgb.predict_proba(X_test)[:, 1]
+        y_pred = (y_probs >= 0.02).astype(int)
+        
+        # Calculate metrics for the final summary report
+        cm = confusion_matrix(y_test, y_pred)
+        f1 = f1_score(y_test, y_pred)
+        precision = precision_score(y_test, y_pred)
+        recall = recall_score(y_test, y_pred)
+        sensitivity = recall
+        accuracy = accuracy_score(y_test, y_pred)
+        auc = roc_auc_score(y_test, y_probs)
+        error_rate = 1 - accuracy
+        
+        report_lines.append(f"\n--- {split_name} Split Results ---")
+        report_lines.append(f"1. Confusion Matrix:\n{cm}")
+        report_lines.append(f"2. F1-Score:    {f1:.4f}")
+        report_lines.append(f"3. Precision:   {precision:.4f}")
+        report_lines.append(f"4. Recall:      {recall:.4f}")
+        report_lines.append(f"5. Sensitivity: {sensitivity:.4f}")
+        report_lines.append(f"6. Accuracy:    {accuracy:.4f}")
+        report_lines.append(f"7. AUC:         {auc:.4f}")
+        report_lines.append(f"8. Error Rate:  {error_rate:.4f}\n")
+        report_lines.append(f"Classification Report:\n{classification_report(y_test, y_pred)}\n")
+
+    print("\n\n" + "="*60)
+    final_report = "\n".join(report_lines)
+    print(final_report)
+    print("="*60 + "\n")
+    
+    with open("results/split_performance_report.txt", "w") as f:
+        f.write(final_report)
 
     # 7. Save the Hybrid Model
     print("\nSaving Hybrid Model...")
@@ -95,6 +139,12 @@ def main():
     plt.savefig(importance_path)
     plt.close()
     print(f"Feature importances plot saved to {importance_path}")
+
+    # 9. Plot ROC Curve for the final split
+    print("\nPlotting ROC Curve...")
+    roc_path = "results/hybrid_roc_curve.png"
+    plot_roc_curve(y_test, y_probs, output_path=roc_path)
+    print(f"ROC curve saved to {roc_path}")
 
 if __name__ == "__main__":
     main()

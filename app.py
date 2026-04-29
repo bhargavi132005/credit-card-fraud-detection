@@ -439,7 +439,10 @@ def render_prediction():
                 is_classic_fraud = (amount > 0) and abs(amount - sender_old) < 0.01 and sender_new == 0 and (tx_type in ["TRANSFER", "CASH_OUT"])
                 
                 # Mathematical Anomaly Override (Impossible balance changes)
-                is_math_anomaly = (tx_type in ["PAYMENT", "TRANSFER", "CASH_IN"]) and (receiver_new < receiver_old)
+                is_math_anomaly = (
+                    (tx_type in ["CASH_OUT", "TRANSFER", "PAYMENT", "DEBIT"] and sender_new > sender_old) or
+                    (tx_type in ["CASH_OUT", "TRANSFER", "PAYMENT", "DEBIT"] and receiver_new < receiver_old)
+                )
                 
                 if (is_classic_fraud or is_math_anomaly) and fraud_prob < 50:
                     prediction = 1
@@ -487,7 +490,10 @@ def render_prediction():
             fraud_prob = np.random.uniform(5, 95)
             
             is_classic_fraud = (amount > 0) and abs(amount - sender_old) < 0.01 and sender_new == 0 and (tx_type in ["TRANSFER", "CASH_OUT"])
-            is_math_anomaly = (tx_type in ["PAYMENT", "TRANSFER", "CASH_IN"]) and (receiver_new < receiver_old)
+            is_math_anomaly = (
+                (tx_type in ["CASH_OUT", "TRANSFER", "PAYMENT", "DEBIT"] and sender_new > sender_old) or
+                (tx_type in ["CASH_OUT", "TRANSFER", "PAYMENT", "DEBIT"] and receiver_new < receiver_old)
+            )
             
             if is_classic_fraud or is_math_anomaly:
                 fraud_prob = np.random.uniform(95.0, 99.9)
@@ -668,10 +674,10 @@ def render_metrics():
     
     results_dir = "results"
     images = {
-        "Confusion Matrix": "confusion_matrix.png",
-        "ROC Curve": "roc_curve.png",
-        "Precision-Recall": "precision_recall_curve.png",
-        "Feature Importances": "hybrid_feature_importances.png"
+        "Baseline Confusion Matrix": "confusion_matrix.png",
+        "Baseline Precision-Recall": "precision_recall_curve.png",
+        "Hybrid ROC Curve": "hybrid_roc_curve.png",
+        "Hybrid Feature Importances": "hybrid_feature_importances.png"
     }
     
     col1, col2 = st.columns(2, gap="large")
